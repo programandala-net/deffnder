@@ -25,7 +25,7 @@ certain projects.
 The functions are relocatable and ready to be used. Usage instructions
 of every function are included in the source code.
 
-The most recent version of the library can be found on
+Related links and highlighted sources can be found on
 http://programandala.net/en.program.deffnder.html[the DEFFNder web
 page].
 
@@ -80,6 +80,10 @@ ____
   disk image) contain all of them.  Also the Z80 symbols files of the
   functions are stored here; they are created by the assembler and are
   useful to know the lenght of the object code.
+
+<demo/>::
+
+  A complete demo program, ready to be used, with source code.
 
 == Requirements
 

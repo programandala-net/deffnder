@@ -1,7 +1,5 @@
-*.z80s linguist-language=Z80 Assembly
+*.z80s linguist-language=Assembly
 bin/* linguist-vendored
 demo/* linguist-vendored
 *.bin linguist-vendored
 *.tap linguist-vendored
-*.lis linguist-vendored
-*.xcodeproj/* linguist-vendored
