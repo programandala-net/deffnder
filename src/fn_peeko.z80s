@@ -1,0 +1,111 @@
+; fn_peeko.z80s 
+;
+; PEEKO BASIC function for ZX Spectrum
+
+; Version B-00-20150225
+
+; This file is part of DEFFNder:
+; http://programandala.net/en.program.deffnder.html
+
+; --------------------------------------------------------------
+; Author and license
+
+; Copyright (C) 2015 Marcos Cruz (programandala.net)
+
+; You may do whatever you want with this work, so long as you
+; retain the copyright notice(s) and this license in all
+; redistributed copies and derived works. There is no warranty.
+
+; --------------------------------------------------------------
+; Description
+
+; This code adds a PEEKO function to Sinclair BASIC, that fetchs
+; an 8-bit value from a memory address and an offset.
+;
+; Note: this function was written just to confirm that it's
+; slower than its plain BASIC equivalent:
+;
+;   LET n=PEEK (a+o)
+
+; --------------------------------------------------------------
+; Usage
+
+; The routine is called from BASIC using a function defined this
+; way (the actual names are unimportant):
+;   10 DEF FN f(a,o)=USR peeko
+; Where:
+;   a     = base address to peek
+;   o     = offset
+;   peeko = address of the machine code routine
+
+; Example:
+;   PRINT FN f(1887,12)
+
+; --------------------------------------------------------------
+; Internal
+
+; During the execution of a FN, the system variable DEFADD holds
+; the address of the first parameter of its DEF FN definition
+; (the first address after the opening paren). The structure of
+; DEF FN f(a,o) is the following:
+
+; offset  content
+; ------  -------
+; -03     DEF FN
+; -02     f
+; -01     (
+; +00     a
+; +01     14
+; +02     0
+; +03     [sign byte: 0=positive; 255=negative]
+; +04     [16-bit number, LSB first]
+; +06     0
+; +07     ,
+; +08     o
+; +09     14
+; +10     0
+; +11     [sign byte: 0=positive; 255=negative]
+; +12     [16-bit number, LSB first]
+; +14     0
+; +15     )=
+
+; --------------------------------------------------------------
+; History of this file
+
+; 2015-02-25: Written. Useless: this method is slower than 'LET
+; n=PEEK (a+o)'.
+;
+; 2015-02-27: Improved comment.
+;
+; 2015-08-10: Revision. License.
+
+; --------------------------------------------------------------
+
+  proc
+
+  ; The code is relocatable
+
+  public fn_peeko,fn_peeko_size
+fn_peeko:
+
+  local DEFADD
+  DEFADD equ 23563 ; system variable
+
+  ld ix,(DEFADD)
+  ld l,(ix+4)
+  ld h,(ix+5)
+  ; hl = base address
+  ld e,(ix+12)
+  ld d,(ix+13)
+  ; de = offset
+  add hl,de
+  ld c,(hl)
+  ld b,0
+  ; bc = value, returned by USR
+  ret
+
+fn_peeko_size equ $-fn_peeko
+
+  endp
+
+; vim: textwidth=64

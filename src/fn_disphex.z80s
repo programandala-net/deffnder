@@ -1,0 +1,169 @@
+; fn_disphex.z80s  
+;
+; Display Hex BASIC function for ZX Spectrum
+
+; Version B-00-20151227
+
+; This file is part of DEFFNder:
+; http://programandala.net/en.program.deffnder.html
+
+; --------------------------------------------------------------
+; Author and license
+
+; Copyright (C) 2014,2015 Marcos Cruz (programandala.net)
+; Portions Copyright (C) 2015 Derek Bolli (dbolli at bigpond dot net dot au)
+
+; You may do whatever you want with this work, so long as you
+; retain the copyright notice(s) and this license in all
+; redistributed copies and derived works. There is no warranty.
+
+; --------------------------------------------------------------
+; Description
+
+; This code adds a Display Hex function to Sinclair BASIC, that
+; prints the 8-bit value passed as an operand as a 2 digit hex
+; value.
+
+; --------------------------------------------------------------
+; Usage
+
+; The routine is called from BASIC using a function defined this way
+; (the actual names are unimportant):
+;   10 DEF FN h$(n)="" AND USR disphex
+; Where:
+;   n     = 8-bit binary number to display
+;   disphex = address of the machine code routine
+
+; Example:
+;   PRINT FN h$(255)
+
+; --------------------------------------------------------------
+; Internal
+
+; During the execution of a FN, the system variable DEFADD holds
+; the address of the first parameter of its DEF FN definition
+; (the first address after the opening paren). The structure of
+; DEF FN s$(s$,n) is the following:
+
+; offset  content
+; ------  -------
+; -04     DEF FN
+; -03     h$(
+; +00     n
+; +01     14
+; +02     0
+; +03     [sign byte: 0=positive; 255=negative]
+; +04     [16-bit number, LSB first]
+; +06     0
+; +07     )=
+
+; --------------------------------------------------------------
+; History of this file
+
+; 2015-12-27: Written. Version B-00.
+
+; --------------------------------------------------------------
+
+  proc
+
+  ; The code is relocatable
+  
+  public fn_disphex,fn_disphex_size
+fn_disphex:
+
+  local exit
+
+; ..............................
+; System variables
+
+  local DEFFADD
+DEFADD equ 23563
+
+; ..............................
+; ROM routines
+
+  local STK_STORE
+STK_STORE   equ 0x2ab6
+            ; Input:
+            ;   A = flag
+            ;   DE = string address
+            ;   BC = string length
+
+  local STK_FETCH
+STK_FETCH   equ 0x2bf1
+            ; Output:
+            ;   A = flag
+            ;   DE = string address
+            ;   BC = string length
+
+; ..............................
+; Start
+
+  ld ix,(DEFADD)
+  ld l,(ix+4)
+  ld h,(ix+5)
+  ; hl = number to display
+  ld a,l
+
+  push af
+  
+  xor a
+  ld bc,2
+  ; a = 0 (=new string)
+  ; de = string address, undetermined
+  ; bc = length of the new string
+  call STK_STORE
+  rst 0x28 ; calculator
+  db 0x17 ; concatenate to the empty string in the DEF FN expression
+  db 0x38 ; end
+  call STK_FETCH
+  call STK_STORE
+  ; de = result string address
+  ; bc = result string length
+
+  pop af
+  
+dumphex:
+  push af                  
+  ; Dump two hex digits in A to (DE) and (DE+1)
+  rrca
+  rrca
+  rrca
+  rrca
+  and $0f
+  ; %00001111
+  cp $0a
+  jr c,dmphnc1
+  add a,7
+dmphnc1:
+  add a,$30
+  ld (de),a
+  ; Store hex digit at (DE)
+  inc de
+  ; Increment destination pointer
+  pop af
+  and $0f
+  ; %00001111
+  cp $0a
+  jr c,dmphnc2
+  add a,7
+dmphnc2:
+  add a,$30
+  ld (de),a
+  ; Store hex digit at (DE)
+  inc de
+  ; Increment destination pointer
+;  ret
+  ; DE points to original DE + 2
+  
+; ..............................
+exit:
+
+  ld bc,1
+  ret
+
+fn_disphex_size equ $-fn_disphex
+
+  endp
+
+; vim: textwidth=64

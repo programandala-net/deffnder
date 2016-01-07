@@ -1,0 +1,107 @@
+; fn_dpoke.z80s 
+;
+; DPOKE BASIC function for ZX Spectrum
+
+; Version B-00-20150122
+
+; This file is part of DEFFNder:
+; http://programandala.net/en.program.deffnder.html
+
+; --------------------------------------------------------------
+; Author and license
+
+; Copyright (C) 2014,2015 Marcos Cruz (programandala.net)
+
+; You may do whatever you want with this work, so long as you
+; retain the copyright notice(s) and this license in all
+; redistributed copies and derived works. There is no warranty.
+
+; --------------------------------------------------------------
+; Description
+
+; This code adds a DPOKE function to Sinclair BASIC, that pokes
+; a 16-bit value into a memory address.
+
+; --------------------------------------------------------------
+; Usage
+
+; A function must be defined this way.
+; (the actual names are unimportant):
+;   10 DEF FN p(a,n)=USR dpoke
+; Where:
+;   a     = address to poke into
+;   n     = 16-bit number to poke
+;   dpoke = address of the machine code routine
+
+; Example:
+;   RANDOMIZE FN p(22528,1024)
+
+; --------------------------------------------------------------
+; Internal
+
+; During the execution of a FN, the system variable DEFADD holds
+; the address of the first parameter of its DEF FN definition
+; (the first address after the opening paren). The structure of
+; DEF FN d(a) is the following:
+
+; offset  content
+; ------  -------
+; -03     DEF FN
+; -02     p(
+; +00     a
+; +01     14
+; +02     0
+; +03     [sign byte: 0=positive; 255=negative]
+; +04     [16-bit number, LSB first]
+; +06     0
+; +07     ,
+; +08     n
+; +09     14
+; +10     0
+; +11     [sign byte: 0=positive; 255=negative]
+; +12     [16-bit number, LSB first]
+; +14     0
+; +15     )=
+
+; --------------------------------------------------------------
+; History
+
+; 2014-08-10: Written 
+;
+; 2015-01-22: Some changes for publication. Version B-00.
+;
+; 2015-02-25: Typo in "Internal".
+;
+; 2015-02-27: Improved comment.
+;
+; 2015-08-10: Revision. License.
+
+; --------------------------------------------------------------
+
+  proc
+
+  ; The code is relocatable
+
+  public fn_dpoke,fn_dpoke_size
+fn_dpoke:
+
+  local DEFADD
+DEFADD equ 23563 ; system variable
+
+  ld ix,(DEFADD)
+  ld l,(ix+4)
+  ld h,(ix+5)
+  ; hl = address
+  ld e,(ix+12)
+  ld d,(ix+13)
+  ; de = number 
+  ld (hl),e
+  inc hl
+  ld (hl),d
+  ret
+
+fn_dpoke_size equ $-fn_dpoke
+
+  endp
+
+; vim: textwidth=64

@@ -1,0 +1,193 @@
+; fn_string.z80s 
+;
+; STRING$ BASIC function for ZX Spectrum
+
+; Version B-00-20150122
+
+; This file is part of DEFFNder:
+; http://programandala.net/en.program.deffnder.html
+
+; --------------------------------------------------------------
+; Authors and license
+
+; 1987-12:
+; The original code was published in Microhobby Especial, issue 7,
+; page 56, by unknown author:
+;   http://microhobby.org/
+;   http://microhobby.speccy.cz/mhf/MHEs7/mhes7_56.jpg
+
+; Copyright (C) 2014,2015 Marcos Cruz (programandala.net)
+;   Typed, translated and commented the code,
+;   and finally adapted if to the Pasmo assembler.
+
+; You may do whatever you want with this work, so long as you
+; retain the copyright notice(s) and this license in all
+; redistributed copies and derived works. There is no warranty.
+
+; --------------------------------------------------------------
+; Description
+
+; This code adds a STRING$ function to Sinclair BASIC.  STRING$
+; produces a specified number of repeats of a string expression.
+
+; --------------------------------------------------------------
+; Usage
+
+; The routine is called from BASIC using a function defined this
+; way (the actual names are unimportant):
+;   10 DEF FN s$(s$,n)="" AND USR string
+; Where:
+;   s$     = string expression to be repeated
+;   n      = repetitions
+;   string = address of the machine code routine
+
+; Example:
+;   PRINT FN s$("Saluton! ",3)
+
+; --------------------------------------------------------------
+; Internal
+
+; During the execution of a FN, the system variable DEFADD holds
+; the address of the first parameter of its DEF FN definition
+; (the first address after the opening paren). The structure of
+; DEF FN s$(s$,n) is the following:
+
+; offset  content
+; ------  -------
+; -04     DEF FN
+; -03     s$(
+; +00     s$
+; +02     14
+; +03     [string type]      
+; +04     [string address, LSB first]
+; +06     [string length, LSB first]
+; +08     ,
+; +09     n
+; +10     14
+; +11     0
+; +12     [sign byte: 0=positive; 255=negative]
+; +13     [16-bit number, LSB first]
+; +15     0
+; +16     )=
+
+; --------------------------------------------------------------
+; History of this file
+
+; 2014-08-07: Written.
+;
+; 2014-08-10: New: 'proc', 'local' and 'public', in order to
+; make it possible to combine several modules into a single
+; file.
+;
+; 2014-12-14: Internal description finished.
+;
+; 2015-01-22: Some changes for publication. Version B-00.
+;
+; 2015-02-27: Improved comment.
+;
+; 2015-08-10: Revision. License.
+
+; --------------------------------------------------------------
+
+  proc
+
+  ; The code is relocatable
+  
+  public fn_string,fn_string_size
+fn_string:
+
+  local copy
+  local exit
+
+; ..............................
+; System variables
+
+  local DEFFADD
+DEFADD equ 23563
+
+; ..............................
+; ROM routines
+
+  local STK_STORE
+STK_STORE   equ 0x2ab6
+            ; Input:
+            ;   A = flag
+            ;   DE = string address
+            ;   BC = string length
+
+  local STK_FETCH
+STK_FETCH   equ 0x2bf1
+            ; Output:
+            ;   A = flag
+            ;   DE = string address
+            ;   BC = string length
+
+  local HLHLDE
+HLHLDE      equ 0x30a9 ; HL=HL*DE
+
+; ..............................
+; Start
+
+  ld ix,(DEFADD)
+  ld e,(ix+6)
+  ld d,(ix+7)
+  ; de = string length
+  push de
+  ld l,(ix+13)
+  ld h,(ix+14)
+  ; hl = number
+  push hl
+  call HLHLDE
+  ld c,l
+  ld b,h
+  xor a
+  ; a = 0 (=new string)
+  ; de = string address, undetermined
+  ; bc = length of the new string
+  call STK_STORE
+  rst 0x28 ; calculator
+  db 0x17 ; concatenate to the empty string in the DEF FN expression
+  db 0x31 ; duplicate
+  db 0x38 ; end
+  call STK_FETCH
+  ; de = result string address
+  ; bc = result string length
+  ld l,(ix+4)
+  ld h,(ix+5)
+  ; hl = parameter string address
+  pop ix ; parameter number
+  pop bc ; parameter string length
+
+; ..............................
+copy:
+
+  ; de = result string address (updated by ldir after every copy)
+  ; hl = parameter string address
+  ; bc = parameter string length
+  ; ix = counter of copies still to be done
+
+  ld a,ixh
+  or ixl
+  ; z = ixl=0?
+  jr z,exit
+  dec ix
+
+  push hl
+  push bc
+  ldir ; copy the parameter string to the current position of the result string
+  pop bc
+  pop hl
+
+  jr copy
+
+; ..............................
+exit:
+
+  ld bc,1
+  ret
+
+fn_string_size equ $-fn_string
+
+  endp
+
+; vim: textwidth=64

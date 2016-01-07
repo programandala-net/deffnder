@@ -1,0 +1,125 @@
+; fn_peekcs.z80s 
+;
+; PEEKC$ BASIC function for ZX Spectrum
+
+; Version B-00-20150122
+
+; This file is part of DEFFNder:
+; http://programandala.net/en.program.deffnder.html
+
+; This file is part of DEFFNder:
+; http://programandala.net/en.program.deffnder.html
+
+; --------------------------------------------------------------
+; Author and license
+
+; Copyright (C) 2014,2015 Marcos Cruz (programandala.net)
+
+; You may do whatever you want with this work, so long as you
+; retain the copyright notice(s) and this license in all
+; redistributed copies and derived works. There is no warranty.
+
+; --------------------------------------------------------------
+; Description
+
+; This code adds a PEEKC$ function to Sinclair BASIC. PEEKC$
+; gets a counted string from memory. A counted string stores its
+; length in its first byte (the length does not include the
+; count byte itself).  This is the usual format used by the
+; Forth language.
+
+; --------------------------------------------------------------
+; Usage
+
+; The routine is called from BASIC using a function defined this
+; way (the actual names are unimportant):
+;   10 DEF FN p$(a)="" AND USR peekcs
+; Where:
+;   a      = address of the string (whose first byte holds the length)
+;   peekcs = address of the machine code routine
+
+; Example:
+;   PRINT FN p$(filename)
+
+; --------------------------------------------------------------
+; Internal
+
+; During the execution of a FN, the system variable DEFADD holds
+; the address of the first parameter of its DEF FN definition
+; (the first address after the opening paren). The structure of
+; DEF FN p$(a) is the following:
+
+; offset  content
+; ------  -------
+; -04     DEF FN
+; -03     p$(
+; +00     a
+; +01     14
+; +02     0
+; +03     [sign byte: 0=positive; 255=negative]
+; +04     [16-bit number, LSB first]
+; +06     0
+; +08     )=
+
+; --------------------------------------------------------------
+; History of this file
+
+; 2015-01-22: Written.
+;
+; 2015-02-10: Typo.
+;
+; 2015-02-27: Improved comment.
+;
+; 2015-08-10: Revision. License.
+
+; --------------------------------------------------------------
+
+  proc
+
+  ; The code is relocatable
+  
+  public fn_peekcs,fn_peekcs_size
+fn_peekcs:
+
+; ..............................
+; System variables
+
+  local DEFFADD
+DEFADD equ 23563
+
+; ..............................
+; ROM routines
+
+  local STK_STORE
+STK_STORE   equ 0x2ab6
+            ; Input:
+            ;   A = flag
+            ;   DE = string address
+            ;   BC = string length
+
+; ..............................
+; Start
+
+  ld ix,(DEFADD)
+  ld l,(ix+4)
+  ld h,(ix+5)
+  ; hl = counted string address
+  ld c,(hl)
+  ld b,0
+  ; bc = string length
+  inc hl
+  ex de,hl
+  ; de = string address
+  xor a
+  ; a = 0 (=new string)
+  call STK_STORE
+  rst 0x28 ; calculator
+  db 0x17 ; concatenate to the empty string in the DEF FN expression
+  db 0x38 ; end
+  ret
+
+fn_peekcs_size equ $-fn_peekcs
+
+  endp
+
+; vim: textwidth=64

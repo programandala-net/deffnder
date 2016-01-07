@@ -1,0 +1,105 @@
+; fn_bxor16.z80s 
+;
+; Bitwise XOR 16 bit BASIC function for ZX Spectrum
+
+; Version B-00-20151222
+
+; This file is part of DEFFNder:
+; http://programandala.net/en.program.deffnder.html
+
+; --------------------------------------------------------------
+; Author and license
+
+; Copyright (C) 2014,2015 Marcos Cruz (programandala.net)
+; Portions Copyright (C) 2015 Derek Bolli (dbolli at bigpond dot net dot au)
+
+; You may do whatever you want with this work, so long as you
+; retain the copyright notice(s) and this license in all
+; redistributed copies and derived works. There is no warranty.
+
+; --------------------------------------------------------------
+; Description
+
+; This code adds a bitwise XOR 16 bit function to Sinclair BASIC, that XORs a 16-bit
+; value with a second 16-bit value and returns the result.
+
+; --------------------------------------------------------------
+; Usage
+
+; A function must be defined this way.
+; (the actual names are unimportant):
+;   10 DEF FN x(a,b)=USR bxor16
+; Where:
+;   a     = word 1 operand
+;   b     = word 2 operand
+;   bxor16 = address of the machine code routine
+
+; Example:
+;   LET n = FN x(43520,65450)
+
+; --------------------------------------------------------------
+; Internal
+
+; During the execution of a FN, the system variable DEFADD holds
+; the address of the first parameter of its DEF FN definition
+; (the first address after the opening paren). The structure of
+; DEF FN d(a) is the following:
+
+; offset  content
+; ------  -------
+; -03     DEF FN
+; -02     x(
+; +00     a
+; +01     14
+; +02     0
+; +03     [sign byte: 0=positive; 255=negative]
+; +04     [16-bit number, LSB first]
+; +06     0
+; +07     ,
+; +08     b
+; +09     14
+; +10     0
+; +11     [sign byte: 0=positive; 255=negative]
+; +12     [16-bit number, LSB first]
+; +14     0
+; +15     )=
+
+; --------------------------------------------------------------
+; History
+
+; 2015-12-22: Written. Version B-00.
+
+; --------------------------------------------------------------
+
+  proc
+
+  ; The code is relocatable
+
+  public fn_bxor16,fn_bxor16_size
+fn_bxor16:
+
+  local DEFADD
+DEFADD equ 23563 ; system variable
+
+  ld ix,(DEFADD)
+  ld l,(ix+4)
+  ld h,(ix+5)
+  ; hl = word 1
+  ld e,(ix+12)
+  ld d,(ix+13)
+  ; de = word 2
+  ld a,l
+  xor e
+  ld c,a
+  ; c = LSB of result
+  ld a,h
+  xor d
+  ld b,a
+  ; b = MSB of result
+  ret
+
+fn_bxor16_size equ $-fn_bxor16
+
+  endp
+
+; vim: textwidth=64

@@ -1,0 +1,3 @@
+00000000	EQU 05C0BH
+fn_dpoke	EQU 00000H
+fn_dpoke_size	EQU 00014H

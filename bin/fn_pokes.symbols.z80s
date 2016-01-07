@@ -1,0 +1,3 @@
+00000000	EQU 05C0BH
+fn_pokes	EQU 00000H
+fn_pokes_size	EQU 0001CH

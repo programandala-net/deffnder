@@ -1,0 +1,235 @@
+; fn_term.z80s
+;
+; A database BASIC function for ZX Spectrum
+
+; Version B-00-20150122
+
+; This file is part of DEFFNder:
+; http://programandala.net/en.program.deffnder.html
+
+; --------------------------------------------------------------
+; Author and license
+
+; Copyright (C) 2014,2015 Marcos Cruz (programandala.net)
+;
+; Based on code written by Ricardo Serrial Wigge, published in:
+;   Microhobby magazine, issue 77 (1986-05-06), pages 22-24:
+;   http://microhobby.org/
+;   http://microhobby.speccy.cz/mhf/077/MH077_22.jpg
+;   http://microhobby.speccy.cz/mhf/077/MH077_23.jpg
+;   http://microhobby.speccy.cz/mhf/077/MH077_24.jpg
+
+; You may do whatever you want with this work, so long as you
+; retain the copyright notice(s) and this license in all
+; redistributed copies and derived works. There is no warranty.
+
+; --------------------------------------------------------------
+; Description
+
+; This code adds a function to Sinclair BASIC that
+; returns the identifier of a given term in a list of terms.
+
+; --------------------------------------------------------------
+; Usage:
+;
+; A BASIC function must be defined this way
+; (the actual names are unimportant):
+;   10 DEF FN t(h$,n$)=USR term
+; Where:
+;   h$    = the haystack, the searched string,
+;           with the following structure:
+;           every term is prefixed by byte 0, and followed
+;           by byte 14 and an id byte.
+;           Example of how a single term could be built:
+;           let t$=chr$ 0+"term1"+chr$14+chr$ id1
+;   n$    = the needle, the string to be searched for
+;           (it must include the starting byte 0 and the
+;           ending byte 14).
+;   term  = address of the machine code routine
+
+; Example for a text adventure, where v$ holds a list of verb terms:
+;   PRINT FN t(v$,CHR$ 0+"examine"+CHR$ 14)
+
+; --------------------------------------------------------------
+; Internal
+
+; During the execution of a FN, the system variable DEFADD holds
+; the address of the first parameter of its DEF FN definition
+; (the first address after the opening paren). The structure of
+; DEF FN i(h$,n$) is the following:
+
+; offset  content
+; ------  -------
+; -03     DEF FN
+; -02     t(
+; +00     h$
+; +02     14
+; +03     [string type]      
+; +04     [string address, LSB first]
+; +06     [string length, LSB first]
+; +08     ,
+; +09     n$
+; +11     14
+; +12     [string type]      
+; +13     [string address, LSB first]
+; +15     [string length, LSB first]
+; +17     )=
+
+; --------------------------------------------------------------
+; History of this file 
+
+; 2014-08-07: Started, with the code of <fn_instr1.z80s>.
+;
+; 2014-08-10: Removed unnecessary saving and restoring of
+; registers.  New: 'proc', 'local' and 'public', in order to
+; make it possible to combine several modules into a single
+; file.
+;
+; 2014-08-11: A bug was introduced by trying to reduce the
+; number of jumps.
+;
+; 2014-08-12: The bug was fixed by comparing with the previous
+; version A-00-201408071702.
+;
+; 2014-08-13: Simpler 'not_found' exit point, no jump.
+;
+; 2015-01-22: Some typos fixed. Improved description and usage.
+; Some changes for publication. Version B-00.
+;
+; 2015-02-27: Improved comment.
+;
+; 2015-08-10: Revision. License.
+
+; --------------------------------------------------------------
+
+  proc
+
+  ; The code is relocatable
+
+  public fn_term,fn_term_size
+fn_term:
+
+  local again
+  local found
+  local haystack_exhausted
+  local match
+  local not_found
+  local needle_exhausted
+
+; ..............................
+; System variables
+
+  local DEFADD
+DEFADD equ 23563
+
+; ..............................
+; Parameters
+
+  ld ix,(DEFADD)
+  ld a,(ix+6)
+  or (ix+7) ; empty string?
+  jr z, not_found
+
+  ld e,(ix+4)
+  ld d,(ix+5)
+  ; de = address of h$
+  ld l,(ix+6)
+  ld h,(ix+7)
+  ; hl = length of h$
+  add hl,de
+  ; hl = address after the end of h$
+
+  ; Use ix+6 as temporary storage
+  ld (ix+6),l
+  ld (ix+7),h
+
+  ld l,e
+  ld h,d
+  ; hl = address of h$
+
+; ..............................
+again:
+
+  ; Start searching h$ for n$ from the current position of h$
+
+  ld e,(ix+13)
+  ld d,(ix+14)
+  dec de
+  ; de = address of n$ -1
+  ld c,(ix+15)
+  ld b,(ix+16)
+  ; bc =length of n$
+
+; ..............................
+match:
+  
+  ; Keep on searching h$
+
+  inc de
+  ; de = address of current char of n$
+  ; hl = address of current char of h$
+  ld a,(de)
+  cpi ; compare a with (hl) and increment hl
+  ex af,af'
+  push hl
+  push de
+
+  ld e,(ix+6)
+  ld d,(ix+7)
+  ; de = address after the end of h$
+  and a
+  sbc hl,de
+  ; z = last char of h$?
+  pop de
+  pop hl
+  jr z,haystack_exhausted 
+
+  ld a,b
+  or c
+  ; z = last char of n$?
+  jr z,needle_exhausted
+
+  ex af,af'
+  ; z = (hl)=(de)?
+  jr z,match
+  jr again
+
+; ..............................
+needle_exhausted:
+
+  ex af,af'
+  ; z = (hl)=(de)?
+  jr nz,again
+  jr found
+
+; ..............................
+haystack_exhausted:
+
+  ld a,b
+  or c
+  ; z = bc=0?
+  jr nz,not_found
+
+  ex af,af'
+  ; z = (hl)=(de)?
+  jr z,found
+
+; ..............................
+not_found:
+
+  ld bc,0
+  ret
+
+; ..............................
+found:
+
+  ; hl = address after the last char of n$ in h$
+  ld b,0
+  ld c,(hl) ; take the term id
+  ret
+
+fn_term_size equ $-fn_term
+
+  endp
+
+; vim: textwidth=64

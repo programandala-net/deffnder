@@ -1,0 +1,243 @@
+; fn_instr1.z80s
+;
+; Simplified INSTR BASIC function for ZX Spectrum
+
+; Version B-00-20150122
+
+; This file is part of DEFFNder:
+; http://programandala.net/en.program.deffnder.html
+
+; --------------------------------------------------------------
+; Authors and license
+
+; Copyright (C) 1986 Ricardo Serrial Wigge
+;   1986-05, original version.
+;   Published in:
+;     Microhobby magazine, issue 77 (1986-05-06), pages 22-24:
+;     http://microhobby.org/
+;     http://microhobby.speccy.cz/mhf/077/MH077_22.jpg
+;     http://microhobby.speccy.cz/mhf/077/MH077_23.jpg
+;     http://microhobby.speccy.cz/mhf/077/MH077_24.jpg
+
+; Copyright (C) 2014,2015 Marcos Cruz (programandala.net)
+;   2014-08, modified version.
+
+; You may do whatever you want with this work, so long as you
+; retain the copyright notice(s) and this license in all
+; redistributed copies and derived works. There is no warranty.
+
+; --------------------------------------------------------------
+; Usage
+
+; The routine is called from BASIC using a function defined this way
+; (the actual names are unimportant):
+;   10 DEF FN i(h$,n$)=USR instr1
+; Where:
+;   h$     = the haystack, the searched string
+;   n$     = the needle, the string to be searched for
+;   instr1 = address of the machine code routine
+
+; Example:
+;   PRINT FN i("En vilagxo de La Mancxo kies nomon mi ne...","Mancxo")
+
+; --------------------------------------------------------------
+; Internal
+
+; During the execution of a FN, the system variable DEFADD holds
+; the address of the first parameter of its DEF FN definition
+; (the first address after the opening paren). The structure of
+; DEF FN i(h$,n$) is the following:
+
+; offset  content
+; ------  -------
+; -03     DEF FN
+; -02     i
+; -01     (
+; +00     h
+; +01     $
+; +02     14
+; +03     [string type]      
+; +04     [string address, LSB first]
+; +06     [string length, LSB first]
+; +08     ,
+; +09     n
+; +10     $
+; +11     14
+; +12     [string type]      
+; +13     [string address, LSB first]
+; +15     [string length, LSB first]
+; +17     )
+; +18     =
+
+; --------------------------------------------------------------
+; History of this file
+
+; 2014-08-06: This modified version doesn't use the position
+; parameter. The search is done always from the start of the
+; haystack.
+;
+; 2014-08-10: Removed unnecessary saving and restoring of
+; registers.  New: 'proc', 'local' and 'public', in order to
+; make it possible to combine several modules into a single
+; file.
+;
+; 2015-01-22: Some typos fixed. Credits improved. Some changes
+; for publication. Version B-00.
+;
+; 2015-02-27: Improved comment.
+;
+; 2015-08-10: Revision. License.
+
+; --------------------------------------------------------------
+
+  proc
+
+  ; The code is relocatable
+
+  public fn_instr1,fn_instr1_size
+fn_instr1:
+
+  local again
+  local exit
+  local found
+  local haystack_exhausted
+  local match
+  local needle_exhausted
+  local not_found
+
+; ..............................
+; System variables
+
+  local DEFADD
+DEFADD equ 23563
+
+; ..............................
+; Parameters
+
+  ld ix,(DEFADD)
+  ld a,(ix+6)
+  or (ix+7) ; empty string?
+  jr z, not_found
+
+  ld e,(ix+4)
+  ld d,(ix+5)
+  ; de = address of h$
+  ld l,(ix+6)
+  ld h,(ix+7)
+  ; hl = length of h$
+  add hl,de
+  ; hl = address after the end of h$
+
+  ; Use ix+6 as temporary storage
+  ld (ix+6),l
+  ld (ix+7),h
+
+  ld l,e
+  ld h,d
+  ; hl = address of h$
+
+; ..............................
+again:
+
+  ; Start searching h$ for n$ from the current position of h$
+
+  ld e,(ix+13)
+  ld d,(ix+14)
+  dec de
+  ; de = address of n$ -1
+  ld c,(ix+15)
+  ld b,(ix+16)
+  ; bc =length of n$
+
+; ..............................
+match:
+  
+  ; Keep on searching h$
+
+  inc de
+  ; de = address of current char of n$
+  ; hl = address of current char of h$
+  ld a,(de)
+  cpi ; compare a with (hl) and increment hl
+  ex af,af'
+  push hl
+  push de
+
+  ld e,(ix+6)
+  ld d,(ix+7)
+  ; de = address after the end of h$
+  and a
+  sbc hl,de
+  ; z = last char of h$?
+  pop de
+  pop hl
+  jr z,haystack_exhausted 
+
+  ld a,b
+  or c
+  ; z = last char of n$?
+  jr z,needle_exhausted
+
+  ex af,af'
+  ; z = (hl)=(de)?
+  jr z,match
+  jr again
+
+; ..............................
+needle_exhausted:
+
+  ex af,af'
+  ; z = (hl)=(de)?
+  jr nz,again
+  jr found
+
+; ..............................
+haystack_exhausted:
+
+  ld a,b
+  or c
+  ; z = bc=0?
+  jr nz,not_found
+
+  ex af,af'
+  ; z = (hl)=(de)?
+  jr z,found
+
+; ..............................
+not_found:
+
+  ld bc,0
+  jr exit
+
+; ..............................
+found:
+
+  ; hl = address of current char of h$
+  ld e,(ix+4)
+  ld d,(ix+5)
+  ; de = address of h$
+  and a
+  sbc hl,de
+  ; hl = offset to the current char of h$
+  ld e,(ix+15)
+  ld d,(ix+16)
+  ; de = length of n$
+  and a
+  sbc hl,de
+  inc hl
+  ; hl = position of n$ in h$
+  ld b,h
+  ld c,l
+  ; bc = position of n$ in h$
+
+; ..............................
+exit:
+
+  ; bc = position of n$ in h$ (or zero)
+  ret
+
+fn_instr1_size equ $-fn_instr1
+
+  endp
+
+; vim: textwidth=64

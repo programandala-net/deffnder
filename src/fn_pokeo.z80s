@@ -1,0 +1,109 @@
+; fn_pokeo.z80s 
+;
+; POKEO BASIC function for ZX Spectrum
+
+; Version B-00-20150122
+
+; --------------------------------------------------------------
+; Author
+
+; Copyright (C) 2015 Marcos Cruz (programandala.net)
+
+; --------------------------------------------------------------
+; Description
+
+; This code adds a POKEO function to Sinclair BASIC, that stores
+; an 8-bit value into a memory address calculated from a base
+; address and an offset.
+;
+; Note: this function was written just to confirm that it's
+; slower than its plain BASIC equivalent:
+;   POKE a+o,n
+
+; --------------------------------------------------------------
+; Usage
+
+; A function must be defined this way
+; (the actual names are unimportant):
+;   10 DEF FN f(a,o,n)=USR pokeo
+; Where:
+;   a     = base address to poke into
+;   o     = offset from the base address
+;   n     = 8-bit number to poke
+;   pokeo = address of the machine code routine
+
+; Example:
+;   RANDOMIZE FN f(16384,12,15)
+
+; --------------------------------------------------------------
+; Internal
+
+; During the execution of a FN, the system variable DEFADD holds
+; the address of the first parameter of its DEF FN definition
+; (the first address after the opening paren). The structure of
+; DEF FN f(a,o,n) is the following:
+
+; offset  content
+; ------  -------
+; -03     DEF FN
+; -02     f(
+; +00     a
+; +01     14
+; +02     0
+; +03     [sign byte: 0=positive; 255=negative]
+; +04     [16-bit number, LSB first]
+; +06     0
+; +07     ,
+; +08     o
+; +09     14
+; +10     0
+; +11     [sign byte: 0=positive; 255=negative]
+; +12     [16-bit number, LSB first]
+; +14     0
+; +15     ,
+; +16     n
+; +17     14
+; +18     0
+; +19     [sign byte: 0=positive; 255=negative]
+; +20     [16-bit number, LSB first]
+; +22     0
+; +23     )=
+
+; --------------------------------------------------------------
+; History
+
+; 2015-02-25: Written. Useless: this method is slower than 'POKE
+; a+o,n'.
+;
+; 2015-02-27: Improved comment.
+
+; --------------------------------------------------------------
+
+  proc
+
+  ; The code is relocatable
+
+  public fn_pokeo,fn_pokeo_size
+fn_pokeo:
+
+  local DEFADD
+DEFADD equ 23563 ; system variable
+
+  ld ix,(DEFADD)
+  ld l,(ix+4)
+  ld h,(ix+5)
+  ; hl = base address
+  ld e,(ix+12)
+  ld d,(ix+13)
+  ; de = offset
+  add hl,de
+  ; hl = address
+  ld a,(ix+20) 
+  ld (hl),a
+  ret
+
+fn_pokeo_size equ $-fn_pokeo
+
+  endp
+
+; vim: textwidth=64

@@ -1,0 +1,100 @@
+= DEFFNder
+:author: Marcos Cruz (programandala.net)
+:revdate: 2016-01-07
+
+// This file is part of DEFFNder
+// (http://programandala.net/en.program.deffnder.html)
+
+// This file is written in AsciiDoc/Asciidoctor format
+
+// Copyright (C) 2015,2016 Marcos Cruz (programandala.net)
+//
+// You may do whatever you want with this work, so long as you retain
+// the copyright notice(s) and this license in all redistributed
+// copies and derived works. There is no warranty.
+
+== Description
+
+DEFFNder is a small library of Sinclair BASIC functions written in
+Z80.
+
+Some of the functions are generic and can be found in more powerful
+BASICs; other functions are very specific, written to be used in
+certain projects.
+
+The functions are relocatable and ready to be used. Usage instructions
+of every function are included in the source code.
+
+The most recent version of the library can be found on
+http://programandala.net/en.program.deffnder.html[the DEFFNder web
+page].
+
+== Authors
+
+Marcos Cruz (programandala.net) wrote the first 15 functions (4 of
+them based on code published in Microhobby in 1986 and 1987, mainly by
+Ricardo Serrial Wigge; full details are in the sources).
+
+Derek Bolli (dbolli at bigpond dot net dot au) contributed 5 more
+functions and the demo program.
+
+== License
+
+____
+You may do whatever you want with this work, so long as you retain the
+copyright notice(s) and this license in all redistributed copies and
+derived works. There is no warranty.
+____
+
+== Files and directories
+
+<README.adoc>::
+
+  This file.
+
+<LICENSE.txt>::
+
+  The tiny license of DEFFNder.
+
+<Makefile>::
+
+  The makefile for the make utility. Usage:
+
+  * `make` builds the TAP files.
+  * `make dsk` builds the TAP files and a DSK file for +3.
+  * `make mgt` builds the TAP files and a MGT file for +D.
+  * `make zip` creates a ZIP file.
+
+<sys/gplusdos-sys-2a.tap>::
+
+  The G+DOS system file included in the MGT disk image for +D.
+
+<src/>::
+
+  Z80 source files of the functions.
+
+<bin/>::
+
+  Binary files: one TAP file for every function; <deffnder.tap>,
+  <deffnder.dsk> (a +3DOS disk image) and <deffender.mgt> (a G+DOS
+  disk image) contain all of them.  Also the Z80 symbols files of the
+  functions are stored here; they are created by the assembler and are
+  useful to know the lenght of the object code.
+
+== Requirements
+
+DEFFNder is distributed in a ZIP file that includes the sources and
+the compiled binaries (in TAP, DSK and MGT files), ready to be used.
+
+In order to compile the sources yourself, the following programs are
+required:
+
+* Pasmo (by Julián Albo):
+  http://pasmo.speccy.org/
+* Optionally (to create the DSK file):
+  tap2dsk from the Taptools (by John Elliott):
+  http://www.seasip.info/ZX/unix.html
+* Optionally (to create the MGT file):
+  mkmgt (by Marcos Cruz):
+  http://programandala.net/en.program.mkmgt.html
+

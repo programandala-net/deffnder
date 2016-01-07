@@ -1,0 +1,161 @@
+; fn_trunc.z80s
+;
+; TRUNC$ BASIC function for ZX Spectrum
+
+; Version B-00-20150122
+
+; This file is part of DEFFNder:
+; http://programandala.net/en.program.deffnder.html
+
+; --------------------------------------------------------------
+; Author and license
+
+; Copyright (C) 2014,2015 Marcos Cruz (programandala.net)
+
+; You may do whatever you want with this work, so long as you
+; retain the copyright notice(s) and this license in all
+; redistributed copies and derived works. There is no warranty.
+
+; --------------------------------------------------------------
+; Description
+
+; This code adds a TRUNC$ function to Sinclair BASIC, to strip
+; the trailing spaces of a string.
+
+; --------------------------------------------------------------
+; Usage
+
+; The routine is called from BASIC using a function defined this way:
+; (the actual names are unimportant):
+;   10 DEF FN t$(s$)="" AND USR trunc
+; Where:
+;   s$    = string to trunc
+;   trunc = address of the machine code routine
+
+; Example:
+;   PRINT FN t$("En vilagxo de La Mancxo         ")
+
+; --------------------------------------------------------------
+; Internal
+
+; During the execution of a FN, the system variable DEFADD holds
+; the address of the first parameter of its DEF FN definition
+; (the first address after the opening paren). The structure of
+; DEF FN t$(s$) is the following:
+
+; offset  content
+; ------  -------
+; -04     DEF FN
+; -03     t$(
+; +00     s$
+; +02     14
+; +03     [string type]
+; +04     [string address, LSB first]
+; +06     [string lenght, LSB first]
+; +08     )=
+
+; --------------------------------------------------------------
+; History of this file
+
+; 2014-08-06: Start.
+;
+; 2014-08-07: Finished. 
+;
+; 2014-08-10: Removed unnecessary saving and restoring of
+; registers.  New: 'proc', 'public' and 'local', in order to
+; make it possible to combine several modules into a single
+; file.
+;
+; 2015-01-22: Some changes for publication. Version B-00.
+;
+; 2015-02-27: Improved comment.
+;
+; 2015-08-10: Revision. License.
+
+; --------------------------------------------------------------
+
+  proc
+
+  ; The code is relocatable
+
+  public fn_trunc,fn_trunc_size
+fn_trunc:
+
+  local exit
+  local truncate
+  local truncated
+
+; ..............................
+; System variables
+
+  local DEFADD
+DEFADD equ 23563
+
+; ..............................
+; ROM routines
+
+  local STK_STORE
+STK_STORE   equ 0x2ab6
+            ; Input:
+            ;   A = flag
+            ;   DE = string address
+            ;   BC = string lenght
+
+; ..............................
+; Parameters
+
+  ld ix,(DEFADD)
+  ld c,(ix+6)
+  ld b,(ix+7)
+  ; bc = string lenght
+  ld a,b
+  or c
+  ; z = empty string?
+  jr z, exit
+
+  ld l,(ix+4)
+  ld h,(ix+5)
+  ; hl = string address
+  add hl,bc
+  ; hl = address after the last char of the string
+
+; ..............................
+truncate:
+
+  ; bc = counter, remaining chars
+  dec hl
+  ; hl = address of the current char
+  ld a,(hl)
+  cp " "
+  ; z=space?
+  jr nz,truncated
+  dec bc
+  ld a,b
+  or c
+  ; z=end of the string?
+  jr nz,truncate
+
+; ..............................
+truncated:
+
+  ; bc = string lenght without the trailing spaces
+  ld e,(ix+4)
+  ld d,(ix+5)
+  ; de = string address
+  xor a  ; a = 0 (=new string)
+  call STK_STORE
+  rst 0x28 ; calculator
+  db 0x17 ; concatenate to the empty string in the DEF FN expression
+  db 0x38 ; end
+
+; ..............................
+exit:
+
+  ld bc,1
+  ret
+
+fn_trunc_size equ $-fn_trunc
+
+  endp
+
+; vim: textwidth=64

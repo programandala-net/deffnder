@@ -1,0 +1,249 @@
+; fn_termn.z80s
+;
+; A database BASIC function for ZX Spectrum
+
+; Version B-00-20150122
+
+; This file is part of DEFFNder:
+; http://programandala.net/en.program.deffnder.html
+
+; --------------------------------------------------------------
+; Author and license
+
+; Copyright (C) 2014,2015 Marcos Cruz (programandala.net)
+
+; You may do whatever you want with this work, so long as you
+; retain the copyright notice(s) and this license in all
+; redistributed copies and derived works. There is no warranty.
+
+; --------------------------------------------------------------
+; Description
+
+; This code adds a function to Sinclair BASIC that returns the
+; n-th term (1 is the first one) in a given list of terms.
+
+; --------------------------------------------------------------
+; Usage
+
+; A BASIC function must be defined this way:
+; (the actual names are unimportant):
+;   10 DEF FN t$(h$,n)="" AND USR termn
+; Where:
+;   h$    = the haystack, the searched string,
+;           with the following structure:
+;           every term is prefixed by byte 0, and followed
+;           by byte 14 and an id byte.
+;           Example of how a single term could be built:
+;           let t$=chr$ 0+"term1"+chr$14+chr$ id1
+;   n     = the ordinal number of the term that will be returned
+;   termn = address of the machine code routine
+
+; Example for a text adventure, where n$ holds a list of noun terms:
+;   PRINT FN t$(n$,3)
+
+; --------------------------------------------------------------
+; Internal
+
+; During the execution of a FN, the system variable DEFADD holds
+; the address of the first parameter of its DEF FN definition
+; (the first address after the opening paren). The structure of
+; DEF FN i(h$,n) is the following:
+
+; offset  content
+; ------  -------
+; -04     DEF FN
+; -03     t$(
+; +00     h$
+; +02     14
+; +03     [string type]      
+; +04     [string address, LSB first]
+; +06     [string length, LSB first]
+; +08     ,
+; +09     n
+; +10     14
+; +11     0
+; +12     [sign byte: 0=positive; 255=negative]
+; +13     [16-bit number, LSB first]
+; +15     0
+; +16     )=
+
+; --------------------------------------------------------------
+; History of this file
+
+; 2014-08-08: Started, with the code of <fn_term.z80s>.
+;
+; 2014-08-10: New: 'proc', 'public' and 'local', in order to
+; make it possible to combine several modules into a single
+; file.
+;
+; 2015-01-22: Some typos fixed. Improved description and usage.
+; Some changes for publication. Version B-00.
+;
+; 2015-02-27: Improved comment.
+;
+; 2015-08-10: Revision. License.
+
+; --------------------------------------------------------------
+
+  proc
+
+  ; The code is relocatable
+
+  public fn_termn,fn_termn_size
+fn_termn:
+
+  local exit
+  local haystack_char
+  local needle_char
+  local needle_end
+  local needle_found
+  local next_haystack_char
+
+; ..............................
+; System variables
+
+  local DEFADD
+DEFADD equ 23563
+
+; ..............................
+; ROM routines
+
+  local STK_STO_$
+STK_STO_$ equ 0x2ab2
+  local STK_STORE
+STK_STORE equ 0x2ab6
+          ; Input:
+          ;   A = flag
+          ;   DE = string address
+          ;   BC = string length
+
+; ..............................
+; Start
+
+  ; hl' must be preserved!
+  ; The only mention I've found about this issue is in
+  ; Ian Logan's book "Understanding You Spectrum", 1982, page 43.
+  exx
+  push hl
+
+; ..............................
+; Parameters
+
+  ld ix,(DEFADD)
+
+  ld bc,0 ; term counter
+  ld l,(ix+13)
+  ld h,(ix+14)
+  ; hl = n
+  ld a,h
+  or l
+  ; z = is n zero?
+  jr z,exit
+  exx
+  ld c,(ix+6)
+  ld b,(ix+7)
+  ; bc = len of h$
+  ld a,b
+  or c
+  ; z = is h$ empty?
+  jr z,exit
+  ld l,(ix+4)
+  ld h,(ix+5)
+  ; hl = start of h$
+
+; ..............................
+haystack_char:
+
+  ; Check the current char of h$.
+  ; hl = address of the current char in h$
+  ld a,(hl)
+  and a
+  ; z = zero char found?
+  jr z,needle_found
+
+next_haystack_char:
+
+  ; hl = address of the current char in h$
+  ; bc = remaining length of h$
+  inc hl
+  dec bc
+  ld a,b
+  or c
+  ; z = is the haystack exhausted?
+  jr z,exit
+  jr haystack_char
+
+; ..............................
+needle_found:
+
+  ; A zero byte has been found in h$;
+  ; it's the marker of a new term.
+  ; But is it the term searched for?
+
+  exx
+  ; hl = n
+  ; bc = term count
+  inc bc
+  ld d,h
+  ld e,l
+  ; cy = 0 (because of the 'and a' above)
+  sbc hl,bc ; is this term the n term?
+  ld h,d
+  ld l,e
+  exx
+  ; z = is this term the n term?
+  jr nz,next_haystack_char
+
+; ..............................
+
+  ; The desired n term has been found.
+  ; Now its length has to be calculated.
+
+  ld bc,0 ; length of the term
+needle_char:
+  ; hl = address of the current char in h$
+  inc hl
+  ld a,(hl)
+  cp 14 ; is it the end of the needle string?
+  ; z = end of string found?
+  jr z,needle_end
+  inc bc
+  jr needle_char
+
+; ..............................
+needle_end:
+
+  ; The end of the n term has been found.  In order to return it
+  ; to BASIC, it has to be pushed onto the calculator stack, and
+  ; added to the empty string already there.
+
+  ; hl = address after the last char of the needle
+  ; bc = length of the n term
+  sbc hl,bc
+  ld d,h
+  ld e,l
+  xor a
+  ; a = 0 (=new string)
+  ; de = address of the first char of the needle
+  ; bc = length of the needle
+  call STK_STO_$
+  rst 0x28 ; calculator
+  db 0x17 ; concatenate it to the empty string in the DEF FN expression
+  db 0x38 ; end
+  ld bc,1 ; to be ANDed with the string
+
+exit:
+ 
+  ; bc = 1 (valid string returned) or 0 (empty string returned)
+  ; hl' must be restored
+  pop hl
+  push bc
+  exx 
+  pop bc
+  ret
+
+fn_termn_size equ $-fn_termn
+
+  endp
+
+; vim: textwidth=64

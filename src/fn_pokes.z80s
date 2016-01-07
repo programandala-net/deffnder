@@ -1,0 +1,119 @@
+; fn_pokes.z80s 
+;
+; POKE$ BASIC command for ZX Spectrum
+
+; Version B-00-20150122
+
+; This file is part of DEFFNder:
+; http://programandala.net/en.program.deffnder.html
+
+; --------------------------------------------------------------
+; Author and license
+
+; Copyright (C) 2014,2015 Marcos Cruz (programandala.net)
+
+; You may do whatever you want with this work, so long as you
+; retain the copyright notice(s) and this license in all
+; redistributed copies and derived works. There is no warranty.
+
+; --------------------------------------------------------------
+; Description
+
+; This code adds a POKE$ command to Sinclair BASIC.  POKE$ 
+; pokes a string into a memory address.
+
+; --------------------------------------------------------------
+; Usage
+
+; A BASIC a function must defined this way
+; (the actual names are unimportant):
+;   10 DEF FN p$(a,s$)=USR pokes
+; Where:
+;   a         = address to poke into
+;   s$        = string to poke
+;   pokes     = address of the machine code routine
+
+; Example:
+;   RANDOMIZE FN p$(16384,"Saluton!")
+
+; --------------------------------------------------------------
+; Internal
+
+; During the execution of a FN, the system variable DEFADD holds
+; the address of the first parameter of its DEF FN definition
+; (the first address after the opening paren). The structure of
+; DEF FN p$(a,s$) is the following:
+
+; offset  content
+; ------  -------
+; -04     DEF FN
+; -03     p$(
+; +00     a
+; +01     14
+; +02     0
+; +03     [sign byte: 0=positive; 255=negative]
+; +04     [16-bit number, LSB first]
+; +06     0
+; +07     ,
+; +08     s$
+; +10     14
+; +11     [string type]      
+; +12     [string address, LSB first]
+; +14     [string length, LSB first]
+; +16     )=
+
+; --------------------------------------------------------------
+; History of this file
+
+; 2014-08-08: Written.
+;
+; 2014-08-10: New: 'proc', 'local' and 'public', in order to
+; make it possible to combine several modules into a single
+; file.
+;
+; 2015-01-22: Some typos fixed. Renamed from "fn_poke.z80s" to
+; "fn_pokes.z80s". Some changes for publication. Version B-00.
+;
+; 2015-02-27: Improved comment.
+;
+; 2015-08-10: Revision. License.
+
+; --------------------------------------------------------------
+
+  proc
+
+  ; The code is relocatable
+
+  public fn_pokes,fn_pokes_size
+fn_pokes:
+
+; ..............................
+; System variables
+
+  local DEFADD
+DEFADD equ 23563
+
+; ..............................
+
+  ld ix,(DEFADD)
+  ld c,(ix+14)
+  ld b,(ix+15)
+  ; bc = string length
+  ld a,b
+  or c
+  ; z = empty string?
+  ret z
+  ld l,(ix+12)
+  ld h,(ix+13)
+  ; hl = string address
+  ld e,(ix+4)
+  ld d,(ix+5)
+  ; de = destination address
+  ldir
+  ret
+
+fn_pokes_size equ $-fn_pokes
+
+  endp
+
+; vim: textwidth=64
